@@ -24,20 +24,19 @@ echo 'Alert Hostname OK!====================='
 # ======================================================================
 # 1. 替换 LuCI 界面 Logo (自定义图片)
 # ======================================================================
-# 使用你上传到 GitHub 的 custom_logo.png 的 Raw 链接
 LOGO_URL="https://raw.githubusercontent.com/abduraheemseer11-cyber/Phicomm-K2P-K3-OpenWrt-Firmware/main/custom_logo.png"
 
-# 替换 Argon 主题的 Logo
-if [ -d "package/lean/luci-theme-argon/htdocs/luci-static/argon/img/" ]; then
-    wget -O package/lean/luci-theme-argon/htdocs/luci-static/argon/img/logo.png $LOGO_URL
+# 替换 Argon 主题的 Logo (修正了路径)
+if [ -d "feeds/luci/themes/luci-theme-argon/htdocs/luci-static/argon/img/" ]; then
+    wget -O feeds/luci/themes/luci-theme-argon/htdocs/luci-static/argon/img/logo.png $LOGO_URL
     echo 'Argon Logo Updated!'
 else
     echo 'Argon theme path not found, skipping...'
 fi
 
-# 替换 Bootstrap 主题（默认主题）的 Logo
-if [ -d "package/lean/luci-theme-bootstrap/htdocs/luci-static/bootstrap/" ]; then
-    wget -O package/lean/luci-theme-bootstrap/htdocs/luci-static/bootstrap/logo.png $LOGO_URL
+# 替换 Bootstrap 主题（默认主题）的 Logo (修正了路径)
+if [ -d "feeds/luci/themes/luci-theme-bootstrap/htdocs/luci-static/bootstrap/" ]; then
+    wget -O feeds/luci/themes/luci-theme-bootstrap/htdocs/luci-static/bootstrap/logo.png $LOGO_URL
     echo 'Bootstrap Logo Updated!'
 else
     echo 'Bootstrap theme path not found, skipping...'

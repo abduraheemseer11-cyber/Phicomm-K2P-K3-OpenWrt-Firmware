@@ -17,6 +17,10 @@
 #
 
 echo '添加SSRPLUS软件源'
+# حذف أي سطر يحتوي على helloworld لتجنب خطأ التكرار
+sed -i '/helloworld/d' feeds.conf.default
+# إضافة السطر مرة واحدة فقط
 sed -i '$a src-git helloworld https://github.com/fw876/helloworld' feeds.conf.default
+
 cat feeds.conf.default
 echo '=========Add feed source OK!========='

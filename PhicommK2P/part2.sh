@@ -66,22 +66,22 @@ uci set dhcp.lan.dhcpv6='disabled'
 uci set dhcp.lan.ra='disabled'
 uci set dhcp.lan.ndp='disabled'
 
-# 2.4G WiFi 配置
+# 2.4G WiFi 配置 (20 dBm)
 uci set wireless.radio0.disabled='0'
 uci set wireless.radio0.channel='5'
 uci set wireless.radio0.htmode='HT20'
-uci set wireless.radio0.txpower='30'
-uci set wireless.radio0.country='PA'
+uci set wireless.radio0.txpower='20'
+uci set wireless.radio0.country='US'
 uci set wireless.default_radio0.ssid='AbduRaheem_2G'
 uci set wireless.default_radio0.network='lan'
 uci set wireless.default_radio0.mode='ap'
 
-# 5G WiFi 配置 (包含 WDS)
+# 5G WiFi 配置 (23 dBm) (包含 WDS)
 uci set wireless.radio1.disabled='0'
 uci set wireless.radio1.channel='116'
 uci set wireless.radio1.htmode='VHT40'
-uci set wireless.radio1.txpower='30'
-uci set wireless.radio1.country='PA'
+uci set wireless.radio1.txpower='23'
+uci set wireless.radio1.country='US'
 uci set wireless.default_radio1.ssid='AbduRaheem_5G'
 uci set wireless.default_radio1.network='lan'
 uci set wireless.default_radio1.mode='ap'

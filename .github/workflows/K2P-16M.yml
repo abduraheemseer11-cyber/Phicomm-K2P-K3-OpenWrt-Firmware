@@ -79,6 +79,31 @@ jobs:
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
 
+    - name: Patch mt76 driver for Tx-Power
+      run: |
+        cd openwrt
+        # تجهيز السائق لفك ضغطه في مجلد build_dir
+        make package/kernel/mt76/prepare V=s
+        
+        # البحث عن ملف eeprom.c داخل build_dir
+        TARGET_FILE=$(find build_dir -path "*/mt7615/eeprom.c" | head -n1)
+        
+        if [ -n "$TARGET_FILE" ] && [ -f "$TARGET_FILE" ]; then
+          echo "Found eeprom.c at: $TARGET_FILE"
+          # حقن return 24; بعد القوس الافتتاحي للدالة لتجاوز حد العتاد
+          sed -i '/mt7615_eeprom_get_target_power_index(/,/^{/ s/{/{\n\treturn 24;/' "$TARGET_FILE"
+          
+          if grep -q 'return 24;' "$TARGET_FILE"; then
+            echo "SUCCESS: mt76 target power patched (return 24)."
+          else
+            echo "ERROR: Failed to patch target file."
+            exit 1
+          fi
+        else
+          echo "ERROR: Could not locate mt7615/eeprom.c in build_dir."
+          exit 1
+        fi
+
     - name: 编译固件
       id: compile
       run: |

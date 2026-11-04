@@ -66,10 +66,8 @@ fi
 # 4. تقليل حجم الفيرموير (حذف الترجمات والوثائق)
 # ======================================================================
 echo "Removing unnecessary language and doc files to save space..."
-find package/ -type f -name '*.po' -delete 2>/dev/null || true
-find package/ -type f -name '*.pot' -delete 2>/dev/null || true
-find feeds/ -type f -name '*.po' -delete 2>/dev/null || true
-find feeds/ -type f -name '*.pot' -delete 2>/dev/null || true
+# تم تعديل السطر التالي لتجنب حذف ملفات حزمة default-settings المطلوبة للبناء
+find package/ feeds/ -type f \( -name '*.po' -o -name '*.pot' \) -not -path 'package/lean/*' -delete 2>/dev/null || true
 find package/ -type d -name 'doc' -exec rm -rf {} + 2>/dev/null || true
 find package/ -type d -name 'docs' -exec rm -rf {} + 2>/dev/null || true
 find package/ -type d -name 'examples' -exec rm -rf {} + 2>/dev/null || true

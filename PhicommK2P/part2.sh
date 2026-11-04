@@ -1,70 +1,61 @@
 #!/bin/bash
 
 #
-#Copyright 2021 yangxu52<https://github.com/yangxu52>
+# Copyright 2021 yangxu52<https://github.com/yangxu52>
 #
-#Licensed under the Apache License, Version 2.0 (the "License");
-#you may not use this file except in compliance with the License.
-#You may obtain a copy of the License at
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-#    http://www.apache.org/licenses/LICENSE-2.0
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
-#Unless required by applicable law or agreed to in writing, software
-#distributed under the License is distributed on an "AS IS" BASIS,
-#WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#See the License for the specific language governing permissions and
-#limitations under the License.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
 
 # ======================================================================
 # 1. تعديل اسم المضيف (Hostname)
 # ======================================================================
 sed -i "s/hostname='OpenWrt'/hostname='Phicomm-K2P'/g" package/base-files/files/bin/config_generate
-cat package/base-files/files/bin/config_generate | grep hostname=
+grep hostname= package/base-files/files/bin/config_generate
 echo 'Hostname modification OK!====================='
 
 # ======================================================================
-# 2. إصلاح تعارض dnsmasq و dnsmasq-full
+# 2. فرض استخدام dnsmasq العادي وحذف أي أثر لـ dnsmasq-full
 # ======================================================================
-# يمنع هذا القسم خطأ check_data_file_clashes عن طريق إزالة dnsmasq العادي
-# والتأكد من أن dnsmasq-full هو الحزمة الوحيدة المحددة.
-echo "Fixing dnsmasq / dnsmasq-full conflict..."
-# إزالة أي تعريف لـ dnsmasq العادي من .config
-sed -i '/^CONFIG_PACKAGE_dnsmasq=y$/d' .config
-sed -i '/^CONFIG_PACKAGE_dnsmasq=m$/d' .config
-sed -i '/^# CONFIG_PACKAGE_dnsmasq is not set/d' .config
-# التأكد من تفعيل dnsmasq-full (إذا لم يكن مفعلًا بالفعل)
-sed -i 's/^# CONFIG_PACKAGE_dnsmasq-full is not set/CONFIG_PACKAGE_dnsmasq-full=y/' .config
-# (اختياري) إذا استمر خطأ التبعية المتكررة، يمكن تعطيل ipset مؤقتًا بإزالة التعليق عن السطر التالي:
-# sed -i 's/^CONFIG_PACKAGE_dnsmasq_full_ipset=y/# CONFIG_PACKAGE_dnsmasq_full_ipset is not set/' .config
-echo "dnsmasq conflict fix applied!====================="
+# بما أن مصدر helloworld (الذي يجلب luci-app-ssr-plus) قد عُطِّل في
+# part1.sh، فإن dnsmasq-full لم يعد مطلوبًا. هذا القسم يضمن أن أي
+# إعداد قديم أو تلقائي في .config لا يعيد تفعيله، وبذلك نتجنب:
+#   - check_data_file_clashes: /usr/share/dnsmasq/rfc6761.conf
+#   - recursive dependency detected (dnsmasq_full_ipset)
+echo "Enforcing basic dnsmasq (stripping any dnsmasq-full traces)..."
+sed -i '/^CONFIG_PACKAGE_dnsmasq-full=y$/d'      .config
+sed -i '/^CONFIG_PACKAGE_dnsmasq-full=m$/d'      .config
+sed -i '/^CONFIG_PACKAGE_dnsmasq_full_/d'        .config
+# ضمان وجود سطر تفعيل dnsmasq العادي
+grep -q '^CONFIG_PACKAGE_dnsmasq=y$' .config || echo 'CONFIG_PACKAGE_dnsmasq=y' >> .config
+echo "dnsmasq enforced OK!====================="
 
 # ======================================================================
 # 3. كسر قيود طاقة الإرسال (Tx-Power) إلى 24 dBm
 # ======================================================================
-echo "Creating custom Tx-Power patch for mt76 driver..."
-mkdir -p package/kernel/mt76/patches
-cat > package/kernel/mt76/patches/999-force-txpower.patch << 'EOF'
---- a/mt7615/eeprom.c
-+++ b/mt7615/eeprom.c
-@@ -1339,7 +1339,7 @@ s8 mt7615_eeprom_get_target_power(struct mt7615_dev *dev,
- 	if (val == 0)
- 		return -EINVAL;
- 
--	return val;
-+	return 24;
- }
-EOF
-echo 'SUCCESS: Tx-Power patch created!====================='
+# ملاحظة: هذا التعديل يُنفَّذ عبر خطوة "Patch mt76 driver for Tx-Power"
+# في workflow.yml بعد استخراج السائق إلى build_dir (أكثر موثوقية من
+# ملف patch قد يفشل تطبيقه عند تغيير أرقام الأسطر في النسخ الجديدة).
+# لا حاجة لإنشاء ملف patch هنا.
+echo 'Tx-Power patch: handled in workflow.yml step====================='
 
 # ======================================================================
 # 4. استبدال شعار LuCI (Logo)
 # ======================================================================
 LOGO_URL="https://raw.githubusercontent.com/abduraheemseer11-cyber/Phicomm-K2P-K3-OpenWrt-Firmware/main/custom_logo.png"
 
-# استبدال شعار ثيم Argon (المسار الصحيح بناءً على diy-part1.sh)
+# استبدال شعار ثيم Argon
 if [ -d "package/luci-theme-argon/htdocs/luci-static/argon/img/" ]; then
-    wget -O package/luci-theme-argon/htdocs/luci-static/argon/img/logo.png $LOGO_URL
+    wget -O package/luci-theme-argon/htdocs/luci-static/argon/img/logo.png "$LOGO_URL"
     echo 'Argon Logo Updated!'
 else
     echo 'Argon theme path not found, skipping...'
@@ -72,7 +63,7 @@ fi
 
 # استبدال شعار ثيم Bootstrap (الافتراضي)
 if [ -d "feeds/luci/themes/luci-theme-bootstrap/htdocs/luci-static/bootstrap/" ]; then
-    wget -O feeds/luci/themes/luci-theme-bootstrap/htdocs/luci-static/bootstrap/logo.png $LOGO_URL
+    wget -O feeds/luci/themes/luci-theme-bootstrap/htdocs/luci-static/bootstrap/logo.png "$LOGO_URL"
     echo 'Bootstrap Logo Updated!'
 else
     echo 'Bootstrap theme path not found, skipping...'
@@ -82,10 +73,9 @@ fi
 # 5. تقليل حجم الفيرموير (حذف الترجمات والوثائق)
 # ======================================================================
 echo "Removing unnecessary language and doc files to save space..."
-# تم تعديل السطر التالي لتجنب حذف ملفات حزمة default-settings المطلوبة للبناء
 find package/ feeds/ -type f \( -name '*.po' -o -name '*.pot' \) -not -path 'package/lean/*' -delete 2>/dev/null || true
-find package/ -type d -name 'doc' -exec rm -rf {} + 2>/dev/null || true
-find package/ -type d -name 'docs' -exec rm -rf {} + 2>/dev/null || true
+find package/ -type d -name 'doc'      -exec rm -rf {} + 2>/dev/null || true
+find package/ -type d -name 'docs'     -exec rm -rf {} + 2>/dev/null || true
 find package/ -type d -name 'examples' -exec rm -rf {} + 2>/dev/null || true
 echo 'Size reduction OK!====================='
 
@@ -101,13 +91,19 @@ uci set luci.main.lang='en'
 
 # تعديل عنوان IP للشبكة المحلية إلى 192.168.1.20
 uci set network.lan.ipaddr='192.168.1.20'
+uci set network.lan.netmask='255.255.255.0'
 
-# دمج منفذ WAN مع LAN (تحويل الراوتر إلى سويتش)
+# وضع Access Point: البوابة والـ DNS يشيران إلى الراوتر الرئيسي
+# غيّر 192.168.1.1 إلى عنوان راوترك الرئيسي إن اختلف
+uci set network.lan.gateway='192.168.1.1'
+uci set network.lan.dns='192.168.1.1'
+
+# دمج منفذ WAN مع LAN (تحويل الراوتر إلى سويتش/AP)
 uci set network.lan.ifname='eth0.1 eth0.2'
 uci -q delete network.wan
 uci -q delete network.wan6
 
-# إيقاف DHCP و DHCPv6
+# إيقاف DHCP و DHCPv6 و RA و NDP
 uci set dhcp.lan.ignore='1'
 uci set dhcp.lan.dhcpv6='disabled'
 uci set dhcp.lan.ra='disabled'

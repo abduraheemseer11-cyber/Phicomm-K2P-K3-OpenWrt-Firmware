@@ -16,25 +16,45 @@
 #limitations under the License.
 #
 
-#修改主机名
+# ======================================================================
+# 1. تعديل اسم المضيف (Hostname)
+# ======================================================================
 sed -i "s/hostname='OpenWrt'/hostname='Phicomm-K2P'/g" package/base-files/files/bin/config_generate
 cat package/base-files/files/bin/config_generate |grep hostname=
 echo 'Alert Hostname OK!====================='
 
 # ======================================================================
-# 1. 替换 LuCI 界面 Logo (自定义图片)
+# 2. كسر قيود طاقة الإرسال (Tx-Power) إلى 24 dBm
+# ======================================================================
+echo "Creating custom Tx-Power patch for mt76 driver..."
+mkdir -p package/kernel/mt76/patches
+cat > package/kernel/mt76/patches/999-force-txpower.patch << 'EOF'
+--- a/mt7615/eeprom.c
++++ b/mt7615/eeprom.c
+@@ -1339,7 +1339,7 @@ s8 mt7615_eeprom_get_target_power(struct mt7615_dev *dev,
+ 	if (val == 0)
+ 		return -EINVAL;
+ 
+-	return val;
++	return 24;
+ }
+EOF
+echo 'SUCCESS: Tx-Power patch created!====================='
+
+# ======================================================================
+# 3. استبدال شعار LuCI (Logo)
 # ======================================================================
 LOGO_URL="https://raw.githubusercontent.com/abduraheemseer11-cyber/Phicomm-K2P-K3-OpenWrt-Firmware/main/custom_logo.png"
 
-# 替换 Argon 主题的 Logo (修正了路径)
-if [ -d "feeds/luci/themes/luci-theme-argon/htdocs/luci-static/argon/img/" ]; then
-    wget -O feeds/luci/themes/luci-theme-argon/htdocs/luci-static/argon/img/logo.png $LOGO_URL
+# استبدال شعار ثيم Argon (المسار الصحيح بناءً على diy-part1.sh)
+if [ -d "package/luci-theme-argon/htdocs/luci-static/argon/img/" ]; then
+    wget -O package/luci-theme-argon/htdocs/luci-static/argon/img/logo.png $LOGO_URL
     echo 'Argon Logo Updated!'
 else
     echo 'Argon theme path not found, skipping...'
 fi
 
-# 替换 Bootstrap 主题（默认主题）的 Logo (修正了路径)
+# استبدال شعار ثيم Bootstrap (الافتراضي)
 if [ -d "feeds/luci/themes/luci-theme-bootstrap/htdocs/luci-static/bootstrap/" ]; then
     wget -O feeds/luci/themes/luci-theme-bootstrap/htdocs/luci-static/bootstrap/logo.png $LOGO_URL
     echo 'Bootstrap Logo Updated!'
@@ -43,51 +63,64 @@ else
 fi
 
 # ======================================================================
-# 2. 创建自定义的 uci-defaults 脚本以应用所有默认设置
+# 4. تقليل حجم الفيرموير (حذف الترجمات والوثائق)
+# ======================================================================
+echo "Removing unnecessary language and doc files to save space..."
+find package/ -type f -name '*.po' -delete 2>/dev/null || true
+find package/ -type f -name '*.pot' -delete 2>/dev/null || true
+find feeds/ -type f -name '*.po' -delete 2>/dev/null || true
+find feeds/ -type f -name '*.pot' -delete 2>/dev/null || true
+find package/ -type d -name 'doc' -exec rm -rf {} + 2>/dev/null || true
+find package/ -type d -name 'docs' -exec rm -rf {} + 2>/dev/null || true
+find package/ -type d -name 'examples' -exec rm -rf {} + 2>/dev/null || true
+echo 'Size reduction OK!====================='
+
+# ======================================================================
+# 5. إنشاء سكربت الإعدادات الافتراضية (UCI Defaults)
 # ======================================================================
 mkdir -p package/base-files/files/etc/uci-defaults/
 cat << 'EOF' > package/base-files/files/etc/uci-defaults/99-custom-k2p-settings
 #!/bin/sh
 
-# 设置语言为英文
+# تعيين اللغة إلى الإنجليزية
 uci set luci.main.lang='en'
 
-# 修改 LAN IP 为 192.168.1.20
+# تعديل عنوان IP للشبكة المحلية إلى 192.168.1.20
 uci set network.lan.ipaddr='192.168.1.20'
 
-# 将所有端口都划分为 LAN (K2P 的 eth0.1 是 LAN，eth0.2 是 WAN)
+# دمج منفذ WAN مع LAN (تحويل الراوتر إلى سويتش)
 uci set network.lan.ifname='eth0.1 eth0.2'
 uci -q delete network.wan
 uci -q delete network.wan6
 
-# 关闭 DHCP 和 DHCPv6
+# إيقاف DHCP و DHCPv6
 uci set dhcp.lan.ignore='1'
 uci set dhcp.lan.dhcpv6='disabled'
 uci set dhcp.lan.ra='disabled'
 uci set dhcp.lan.ndp='disabled'
 
-# 2.4G WiFi 配置 (20 dBm)
+# إعداد 2.4G واي فاي (طاقة 24 dBm)
 uci set wireless.radio0.disabled='0'
 uci set wireless.radio0.channel='5'
 uci set wireless.radio0.htmode='HT20'
-uci set wireless.radio0.txpower='20'
+uci set wireless.radio0.txpower='24'
 uci set wireless.radio0.country='US'
 uci set wireless.default_radio0.ssid='AbduRaheem_2G'
 uci set wireless.default_radio0.network='lan'
 uci set wireless.default_radio0.mode='ap'
 
-# 5G WiFi 配置 (23 dBm) (包含 WDS)
+# إعداد 5G واي فاي (طاقة 24 dBm + WDS)
 uci set wireless.radio1.disabled='0'
 uci set wireless.radio1.channel='116'
 uci set wireless.radio1.htmode='VHT40'
-uci set wireless.radio1.txpower='23'
+uci set wireless.radio1.txpower='24'
 uci set wireless.radio1.country='US'
 uci set wireless.default_radio1.ssid='AbduRaheem_5G'
 uci set wireless.default_radio1.network='lan'
 uci set wireless.default_radio1.mode='ap'
 uci set wireless.default_radio1.wds='1'
 
-# 提交修改使其生效
+# حفظ التغييرات
 uci commit luci
 uci commit network
 uci commit dhcp
@@ -96,6 +129,5 @@ uci commit wireless
 exit 0
 EOF
 
-# 赋予脚本执行权限
 chmod +x package/base-files/files/etc/uci-defaults/99-custom-k2p-settings
 echo 'Alert Custom Settings OK!====================='

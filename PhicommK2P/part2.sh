@@ -20,11 +20,27 @@
 # 1. تعديل اسم المضيف (Hostname)
 # ======================================================================
 sed -i "s/hostname='OpenWrt'/hostname='Phicomm-K2P'/g" package/base-files/files/bin/config_generate
-cat package/base-files/files/bin/config_generate |grep hostname=
-echo 'Alert Hostname OK!====================='
+cat package/base-files/files/bin/config_generate | grep hostname=
+echo 'Hostname modification OK!====================='
 
 # ======================================================================
-# 2. كسر قيود طاقة الإرسال (Tx-Power) إلى 24 dBm
+# 2. إصلاح تعارض dnsmasq و dnsmasq-full
+# ======================================================================
+# يمنع هذا القسم خطأ check_data_file_clashes عن طريق إزالة dnsmasq العادي
+# والتأكد من أن dnsmasq-full هو الحزمة الوحيدة المحددة.
+echo "Fixing dnsmasq / dnsmasq-full conflict..."
+# إزالة أي تعريف لـ dnsmasq العادي من .config
+sed -i '/^CONFIG_PACKAGE_dnsmasq=y$/d' .config
+sed -i '/^CONFIG_PACKAGE_dnsmasq=m$/d' .config
+sed -i '/^# CONFIG_PACKAGE_dnsmasq is not set/d' .config
+# التأكد من تفعيل dnsmasq-full (إذا لم يكن مفعلًا بالفعل)
+sed -i 's/^# CONFIG_PACKAGE_dnsmasq-full is not set/CONFIG_PACKAGE_dnsmasq-full=y/' .config
+# (اختياري) إذا استمر خطأ التبعية المتكررة، يمكن تعطيل ipset مؤقتًا بإزالة التعليق عن السطر التالي:
+# sed -i 's/^CONFIG_PACKAGE_dnsmasq_full_ipset=y/# CONFIG_PACKAGE_dnsmasq_full_ipset is not set/' .config
+echo "dnsmasq conflict fix applied!====================="
+
+# ======================================================================
+# 3. كسر قيود طاقة الإرسال (Tx-Power) إلى 24 dBm
 # ======================================================================
 echo "Creating custom Tx-Power patch for mt76 driver..."
 mkdir -p package/kernel/mt76/patches
@@ -42,7 +58,7 @@ EOF
 echo 'SUCCESS: Tx-Power patch created!====================='
 
 # ======================================================================
-# 3. استبدال شعار LuCI (Logo)
+# 4. استبدال شعار LuCI (Logo)
 # ======================================================================
 LOGO_URL="https://raw.githubusercontent.com/abduraheemseer11-cyber/Phicomm-K2P-K3-OpenWrt-Firmware/main/custom_logo.png"
 
@@ -63,7 +79,7 @@ else
 fi
 
 # ======================================================================
-# 4. تقليل حجم الفيرموير (حذف الترجمات والوثائق)
+# 5. تقليل حجم الفيرموير (حذف الترجمات والوثائق)
 # ======================================================================
 echo "Removing unnecessary language and doc files to save space..."
 # تم تعديل السطر التالي لتجنب حذف ملفات حزمة default-settings المطلوبة للبناء
@@ -74,7 +90,7 @@ find package/ -type d -name 'examples' -exec rm -rf {} + 2>/dev/null || true
 echo 'Size reduction OK!====================='
 
 # ======================================================================
-# 5. إنشاء سكربت الإعدادات الافتراضية (UCI Defaults)
+# 6. إنشاء سكربت الإعدادات الافتراضية (UCI Defaults)
 # ======================================================================
 mkdir -p package/base-files/files/etc/uci-defaults/
 cat << 'EOF' > package/base-files/files/etc/uci-defaults/99-custom-k2p-settings
@@ -128,4 +144,4 @@ exit 0
 EOF
 
 chmod +x package/base-files/files/etc/uci-defaults/99-custom-k2p-settings
-echo 'Alert Custom Settings OK!====================='
+echo 'Custom UCI settings OK!====================='

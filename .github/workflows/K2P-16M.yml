@@ -28,7 +28,7 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
-    - name: 初始化编译环境
+    - name: Initialize build environment
       env:
         DEBIAN_FRONTEND: noninteractive
       run: |
@@ -43,27 +43,27 @@ jobs:
         sudo mkdir -p /workdir
         sudo chown $USER:$GROUPS /workdir
 
-    - name: 拉取源代码
+    - name: Clone source code
       working-directory: /workdir
       run: |
         df -hT $PWD
         git clone $REPO_URL -b $REPO_BRANCH openwrt
         ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
 
-    - name: 加载自定义feeds文件
+    - name: Load custom feeds configuration
       run: |
         [ -e $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
         chmod +x $MOD_P1_SH
         cd openwrt
         $GITHUB_WORKSPACE/$MOD_P1_SH
 
-    - name: 更新feeds中描述内容
+    - name: Update feeds
       run: cd openwrt && ./scripts/feeds update -a
 
-    - name: 安装feeds中描述内容
+    - name: Install feeds
       run: cd openwrt && ./scripts/feeds install -a
 
-    - name: 加载自定义编译配置文件
+    - name: Load custom build configuration
       run: |
         [ -e files ] && mv files openwrt/files
         [ -e $CONFIG_FILE ] && mv $CONFIG_FILE openwrt/.config
@@ -71,7 +71,7 @@ jobs:
         cd openwrt
         $GITHUB_WORKSPACE/$MOD_P2_SH
 
-    - name: 下载编译所需依赖文件
+    - name: Download build dependencies
       id: package
       run: |
         cd openwrt
@@ -105,7 +105,7 @@ jobs:
           exit 1
         fi
 
-    - name: 编译固件
+    - name: Compile firmware
       id: compile
       run: |
         cd openwrt
@@ -115,18 +115,18 @@ jobs:
         [ -s DEVICE_NAME ] && echo "DEVICE_NAME=_$(cat DEVICE_NAME)" >> $GITHUB_ENV
         echo "FILE_DATE=_$(date +"%Y%m%d%H%M")" >> $GITHUB_ENV
 
-    - name: 核对空间占用
+    - name: Check disk space usage
       if: success()
       run: df -hT
 
-    - name: 上传bin目录
+    - name: Upload bin directory
       uses: actions/upload-artifact@v4
       if: success() && env.UPLOAD_BIN_DIR == 'true'
       with:
         name: OpenWrt_bin${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
         path: openwrt/bin
 
-    - name: 整理文件
+    - name: Organize files
       id: organize
       if: success() && env.UPLOAD_FIRMWARE == 'true'
       run: |
@@ -134,21 +134,21 @@ jobs:
         rm -rf packages
         echo "FIRMWARE=$PWD" >> $GITHUB_ENV
 
-    - name: 上传固件目录
+    - name: Upload firmware directory
       uses: actions/upload-artifact@v4
       if: success() && env.UPLOAD_FIRMWARE == 'true' && env.FIRMWARE != ''
       with:
         name: OpenWrt_firmware${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
         path: ${{ env.FIRMWARE }}
 
-    - name: 生成Release标识
+    - name: Generate Release tag
       id: tag
       if: success() && env.UPLOAD_RELEASE == 'true'
       run: |
         echo "release_tag=K2P16-$(date +"%Y.%m.%d-%H%M")" >> $GITHUB_ENV
         touch release.txt
 
-    - name: 发布到Release
+    - name: Publish to Release
       uses: softprops/action-gh-release@v1
       if: success() && env.UPLOAD_RELEASE == 'true'
       env:
@@ -158,13 +158,13 @@ jobs:
         body_path: release.txt
         files: ${{ env.FIRMWARE }}/*
 
-    - name: 清理工作空间
+    - name: Clean workspace
       uses: GitRML/delete-workflow-runs@main
       with:
         retain_days: 1
         keep_minimum_runs: 3
 
-    - name: 移除旧的Realeases
+    - name: Remove old Releases
       uses: dev-drprasad/delete-older-releases@v0.3.2
       if: success() && env.UPLOAD_RELEASE == 'true'
       with:
